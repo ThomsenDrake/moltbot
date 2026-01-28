@@ -3,10 +3,15 @@ import fsSync from "node:fs";
 import type { OpenClawConfig } from "../config/config.js";
 import { resolveUserPath } from "../utils.js";
 import { createGeminiEmbeddingProvider, type GeminiEmbeddingClient } from "./embeddings-gemini.js";
+import {
+  createMistralEmbeddingProvider,
+  type MistralEmbeddingClient,
+} from "./embeddings-mistral.js";
 import { createOpenAiEmbeddingProvider, type OpenAiEmbeddingClient } from "./embeddings-openai.js";
 import { importNodeLlamaCpp } from "./node-llama.js";
 
 export type { GeminiEmbeddingClient } from "./embeddings-gemini.js";
+export type { MistralEmbeddingClient } from "./embeddings-mistral.js";
 export type { OpenAiEmbeddingClient } from "./embeddings-openai.js";
 
 export type EmbeddingProvider = {
@@ -18,24 +23,25 @@ export type EmbeddingProvider = {
 
 export type EmbeddingProviderResult = {
   provider: EmbeddingProvider;
-  requestedProvider: "openai" | "local" | "gemini" | "auto";
-  fallbackFrom?: "openai" | "local" | "gemini";
+  requestedProvider: "openai" | "local" | "gemini" | "mistral" | "auto";
+  fallbackFrom?: "openai" | "local" | "gemini" | "mistral";
   fallbackReason?: string;
   openAi?: OpenAiEmbeddingClient;
   gemini?: GeminiEmbeddingClient;
+  mistral?: MistralEmbeddingClient;
 };
 
 export type EmbeddingProviderOptions = {
   config: OpenClawConfig;
   agentDir?: string;
-  provider: "openai" | "local" | "gemini" | "auto";
+  provider: "openai" | "local" | "gemini" | "mistral" | "auto";
   remote?: {
     baseUrl?: string;
     apiKey?: string;
     headers?: Record<string, string>;
   };
   model: string;
-  fallback: "openai" | "gemini" | "local" | "none";
+  fallback: "openai" | "gemini" | "mistral" | "local" | "none";
   local?: {
     modelPath?: string;
     modelCacheDir?: string;
@@ -119,7 +125,7 @@ export async function createEmbeddingProvider(
   const requestedProvider = options.provider;
   const fallback = options.fallback;
 
-  const createProvider = async (id: "openai" | "local" | "gemini") => {
+  const createProvider = async (id: "openai" | "local" | "gemini" | "mistral") => {
     if (id === "local") {
       const provider = await createLocalEmbeddingProvider(options);
       return { provider };
@@ -128,11 +134,15 @@ export async function createEmbeddingProvider(
       const { provider, client } = await createGeminiEmbeddingProvider(options);
       return { provider, gemini: client };
     }
+    if (id === "mistral") {
+      const { provider, client } = await createMistralEmbeddingProvider(options);
+      return { provider, mistral: client };
+    }
     const { provider, client } = await createOpenAiEmbeddingProvider(options);
     return { provider, openAi: client };
   };
 
-  const formatPrimaryError = (err: unknown, provider: "openai" | "local" | "gemini") =>
+  const formatPrimaryError = (err: unknown, provider: "openai" | "local" | "gemini" | "mistral") =>
     provider === "local" ? formatLocalSetupError(err) : formatError(err);
 
   if (requestedProvider === "auto") {
@@ -148,7 +158,7 @@ export async function createEmbeddingProvider(
       }
     }
 
-    for (const provider of ["openai", "gemini"] as const) {
+    for (const provider of ["openai", "gemini", "mistral"] as const) {
       try {
         const result = await createProvider(provider);
         return { ...result, requestedProvider };
@@ -235,3 +245,5 @@ function formatLocalSetupError(err: unknown): string {
     .filter(Boolean)
     .join("\n");
 }
+
+export { createMistralEmbeddingProvider } from "./embeddings-mistral.js";
