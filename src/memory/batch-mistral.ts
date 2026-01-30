@@ -27,7 +27,9 @@ function getMistralHeaders(mistral: MistralEmbeddingClient): Record<string, stri
 }
 
 function splitMistralBatchRequests(requests: MistralBatchRequest[]): MistralBatchRequest[][] {
-  if (requests.length <= MISTRAL_BATCH_MAX_REQUESTS) return [requests];
+  if (requests.length <= MISTRAL_BATCH_MAX_REQUESTS) {
+    return [requests];
+  }
   const groups: MistralBatchRequest[][] = [];
   for (let i = 0; i < requests.length; i += MISTRAL_BATCH_MAX_REQUESTS) {
     groups.push(requests.slice(i, i + MISTRAL_BATCH_MAX_REQUESTS));
@@ -39,7 +41,9 @@ async function submitMistralBatch(params: {
   mistral: MistralEmbeddingClient;
   requests: MistralBatchRequest[];
 }): Promise<Map<string, number[]>> {
-  if (params.requests.length === 0) return new Map();
+  if (params.requests.length === 0) {
+    return new Map();
+  }
 
   const baseUrl = getMistralBaseUrl(params.mistral);
   const url = `${baseUrl}/embeddings`;
@@ -94,7 +98,9 @@ async function submitMistralBatch(params: {
 }
 
 async function runWithConcurrency<T>(tasks: Array<() => Promise<T>>, limit: number): Promise<T[]> {
-  if (tasks.length === 0) return [];
+  if (tasks.length === 0) {
+    return [];
+  }
   const resolvedLimit = Math.max(1, Math.min(limit, tasks.length));
   const results: T[] = Array.from({ length: tasks.length });
   let next = 0;
@@ -102,10 +108,14 @@ async function runWithConcurrency<T>(tasks: Array<() => Promise<T>>, limit: numb
 
   const workers = Array.from({ length: resolvedLimit }, async () => {
     while (true) {
-      if (firstError) return;
+      if (firstError) {
+        return;
+      }
       const index = next;
       next += 1;
-      if (index >= tasks.length) return;
+      if (index >= tasks.length) {
+        return;
+      }
       try {
         results[index] = await tasks[index]();
       } catch (err) {
@@ -116,7 +126,9 @@ async function runWithConcurrency<T>(tasks: Array<() => Promise<T>>, limit: numb
   });
 
   await Promise.allSettled(workers);
-  if (firstError) throw firstError;
+  if (firstError) {
+    throw firstError;
+  }
   return results;
 }
 
@@ -130,7 +142,9 @@ export async function runMistralEmbeddingBatches(params: {
   concurrency: number;
   debug?: (message: string, data?: Record<string, unknown>) => void;
 }): Promise<Map<string, number[]>> {
-  if (params.requests.length === 0) return new Map();
+  if (params.requests.length === 0) {
+    return new Map();
+  }
 
   const groups = splitMistralBatchRequests(params.requests);
   const byCustomId = new Map<string, number[]>();

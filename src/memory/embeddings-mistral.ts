@@ -1,5 +1,5 @@
-import { requireApiKey, resolveApiKeyForProvider } from "../agents/model-auth.js";
 import type { EmbeddingProvider, EmbeddingProviderOptions } from "./embeddings.js";
+import { requireApiKey, resolveApiKeyForProvider } from "../agents/model-auth.js";
 
 export type MistralEmbeddingClient = {
   baseUrl: string;
@@ -12,8 +12,12 @@ const DEFAULT_MISTRAL_BASE_URL = "https://api.mistral.ai/v1";
 
 export function normalizeMistralModel(model: string): string {
   const trimmed = model.trim();
-  if (!trimmed) return DEFAULT_MISTRAL_EMBEDDING_MODEL;
-  if (trimmed.startsWith("mistral/")) return trimmed.slice("mistral/".length);
+  if (!trimmed) {
+    return DEFAULT_MISTRAL_EMBEDDING_MODEL;
+  }
+  if (trimmed.startsWith("mistral/")) {
+    return trimmed.slice("mistral/".length);
+  }
   return trimmed;
 }
 
@@ -24,7 +28,9 @@ export async function createMistralEmbeddingProvider(
   const url = `${client.baseUrl.replace(/\/$/, "")}/embeddings`;
 
   const embed = async (input: string[]): Promise<number[][]> => {
-    if (input.length === 0) return [];
+    if (input.length === 0) {
+      return [];
+    }
     const res = await fetch(url, {
       method: "POST",
       headers: client.headers,

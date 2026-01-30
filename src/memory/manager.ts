@@ -13,12 +13,14 @@ import { createSubsystemLogger } from "../logging/subsystem.js";
 import { onSessionTranscriptUpdate } from "../sessions/transcript-events.js";
 import { resolveUserPath } from "../utils.js";
 import { runGeminiEmbeddingBatches, type GeminiBatchRequest } from "./batch-gemini.js";
+import { runMistralEmbeddingBatches, type MistralBatchRequest } from "./batch-mistral.js";
 import {
   OPENAI_BATCH_ENDPOINT,
   type OpenAiBatchRequest,
   runOpenAiEmbeddingBatches,
 } from "./batch-openai.js";
 import { DEFAULT_GEMINI_EMBEDDING_MODEL } from "./embeddings-gemini.js";
+import { DEFAULT_MISTRAL_EMBEDDING_MODEL } from "./embeddings-mistral.js";
 import { DEFAULT_OPENAI_EMBEDDING_MODEL } from "./embeddings-openai.js";
 import {
   createEmbeddingProvider,
@@ -28,8 +30,6 @@ import {
   type MistralEmbeddingClient,
   type OpenAiEmbeddingClient,
 } from "./embeddings.js";
-import { DEFAULT_MISTRAL_EMBEDDING_MODEL } from "./embeddings-mistral.js";
-import { runMistralEmbeddingBatches, type MistralBatchRequest } from "./batch-mistral.js";
 import { bm25RankToScore, buildFtsQuery, mergeHybridResults } from "./hybrid.js";
 import {
   buildFileEntry,
@@ -1904,7 +1904,7 @@ export class MemoryIndexManager {
     if (this.provider.id === "mistral" && this.mistral) {
       const entries = Object.entries(this.mistral.headers)
         .filter(([key]) => key.toLowerCase() !== "authorization")
-        .sort(([a], [b]) => a.localeCompare(b))
+        .toSorted(([a], [b]) => a.localeCompare(b))
         .map(([key, value]) => [key, value]);
       return hashText(
         JSON.stringify({
@@ -2103,7 +2103,9 @@ export class MemoryIndexManager {
     if (!mistral) {
       return this.embedChunksInBatches(chunks);
     }
-    if (chunks.length === 0) return [];
+    if (chunks.length === 0) {
+      return [];
+    }
     const cached = this.loadEmbeddingCache(chunks.map((chunk) => chunk.hash));
     const embeddings: number[][] = Array.from({ length: chunks.length }, () => []);
     const missing: Array<{ index: number; chunk: MemoryChunk }> = [];
@@ -2118,7 +2120,9 @@ export class MemoryIndexManager {
       }
     }
 
-    if (missing.length === 0) return embeddings;
+    if (missing.length === 0) {
+      return embeddings;
+    }
 
     const requests: MistralBatchRequest[] = [];
     const mapping = new Map<string, { index: number; hash: string }>();
@@ -2149,13 +2153,17 @@ export class MemoryIndexManager {
         }),
       fallback: async () => await this.embedChunksInBatches(chunks),
     });
-    if (Array.isArray(batchResult)) return batchResult;
+    if (Array.isArray(batchResult)) {
+      return batchResult;
+    }
     const byCustomId = batchResult;
 
     const toCache: Array<{ hash: string; embedding: number[] }> = [];
     for (const [customId, embedding] of byCustomId.entries()) {
       const mapped = mapping.get(customId);
-      if (!mapped) continue;
+      if (!mapped) {
+        continue;
+      }
       embeddings[mapped.index] = embedding;
       toCache.push({ hash: mapped.hash, embedding });
     }
